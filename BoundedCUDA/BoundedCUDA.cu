@@ -4,26 +4,35 @@
 
 int main()
 {
-    const int arraySize = 5;
-    const int a[arraySize] = { 1, 2, 3, 4, 5 };
-    const int b[arraySize] = { 10, 20, 30, 40, 50 };
-    int c[arraySize] = { 0 };
+    const int arraySize = 4; // "unsigned int" from cpp POV
+    const cuda::std::complex<double> arg[arraySize] = { cuda::std::complex<double>(1,1),
+    cuda::std::complex<double>(-1,1) ,cuda::std::complex<double>(1,-1) ,cuda::std::complex<double>(-1,-1) };
+    cuda::std::complex<double> root[arraySize] = { 0 };
 
     Loss g; // initialize GPU and CUDA methods
-    g.Hello();
 
     // To do:
     //  1) Resolve __global__ and kernel/device functions within a class
 
     // Add vectors in parallel.
-    cudaError_t cudaStatus = g.addWithCuda(c, a, b, arraySize);
+    cudaError_t cudaStatus = g.posRootWithCuda(arg, root, arraySize);
     if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "addWithCuda failed!");
+        fprintf(stderr, "sqrtWithCuda failed!");
         return 1;
     }
 
-    printf("{1,2,3,4,5} + {10,20,30,40,50} = {%d,%d,%d,%d,%d}\n",
-        c[0], c[1], c[2], c[3], c[4]);
+    std::cout << "The result of sqrt({";
+    for (int i = 0; i < arraySize; i++)
+    {
+        std::cout << "(" << arg[i].real() << "," << arg[i].imag() << "), ";
+    }
+    std::cout << "}):\n";
+    std::cout << "{";
+    for (int i = 0; i < arraySize; i++)
+    {
+        std::cout << "(" << root[i].real() << "," << root[i].imag() << "), ";
+    }
+    std::cout << "})";
 
     // cudaDeviceReset must be called before exiting in order for profiling and
     // tracing tools such as Nsight and Visual Profiler to show complete traces.

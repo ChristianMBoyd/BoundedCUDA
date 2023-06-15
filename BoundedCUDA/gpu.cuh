@@ -8,5 +8,11 @@
 #include <cuda/std/complex>
 
 // function declarations
-void addKernel_call(unsigned int size, int* c, const int* a, const int* b); // external call to initiate kernel with size threads
+
+// test functions
+void addKernel_call(int* c, const int* a, const int* b, unsigned int size); // external call to initiate kernel with size threads
 __global__ void addKernel(int* c, const int* a, const int* b);
+void sqrtKernel_call(const double* arg, double* root, unsigned int size);
+__global__ void sqrtKernel(const double* arg, double* root);
+void posRootKernel_call(const cuda::std::complex<double>* arg, cuda::std::complex<double>* root, unsigned int size);
+__global__ void posRootKernel(const cuda::std::complex<double>* arg, cuda::std::complex<double>* root);

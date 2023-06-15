@@ -36,12 +36,12 @@ void posRootKernel_call(const cuda::std::complex<double>* arg, cuda::std::comple
     posRootKernel << < 1, size >> > (arg, root);
 }
 
-// posRoot test on complex numbers
+// posRoot test (complex math on GPU)
 __global__ void posRootKernel(const cuda::std::complex<double>* arg, cuda::std::complex<double>* root)
 {
     // thread enumeration
     int i = threadIdx.x;
-    // "i" def 
+    // complex "i" def 
     const cuda::std::complex<double> im(0, 1.);
 
     root[i] = im * cuda::std::sqrt(-arg[i]);

@@ -126,7 +126,7 @@ cudaError_t Loss::sqrtWithCuda(const double* arg, double* root, unsigned int siz
     // Check for any errors launching the kernel
     cudaStatus = cudaGetLastError();
     if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "rootKernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
+        fprintf(stderr, "sqrtKernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
         goto Error;
     }
 
@@ -134,7 +134,7 @@ cudaError_t Loss::sqrtWithCuda(const double* arg, double* root, unsigned int siz
     // any errors encountered during the launch.
     cudaStatus = cudaDeviceSynchronize();
     if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel!\n", cudaStatus);
+        fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching sqrtKernel!\n", cudaStatus);
         goto Error;
     }
 
@@ -187,7 +187,7 @@ cudaError_t Loss::posRootWithCuda(const cuda::std::complex<double>* arg, cuda::s
     // Check for any errors launching the kernel
     cudaStatus = cudaGetLastError();
     if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "rootKernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
+        fprintf(stderr, "posRootKernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
         goto Error;
     }
 
@@ -195,7 +195,7 @@ cudaError_t Loss::posRootWithCuda(const cuda::std::complex<double>* arg, cuda::s
     // any errors encountered during the launch.
     cudaStatus = cudaDeviceSynchronize();
     if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel!\n", cudaStatus);
+        fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching posRootKernel!\n", cudaStatus);
         goto Error;
     }
 

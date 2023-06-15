@@ -12,9 +12,12 @@ int main()
     Loss g; // initialize GPU and CUDA methods
 
     // To do:
-    //  1) Resolve __global__ and kernel/device functions within a class
+    //  1) Implement mathematical functions
+    //  2) Implement parallelized matrix/vector initializations
+    //      i.e., implement in a way that allows for direct cuBLAS calls after
+    //  3) Implement cuBLAS methods for subsequent linear algebra
 
-    // Add vectors in parallel.
+    // current test -- posRoot on complex values, done on device
     cudaError_t cudaStatus = g.posRootWithCuda(arg, root, arraySize);
     if (cudaStatus != cudaSuccess) {
         fprintf(stderr, "sqrtWithCuda failed!");

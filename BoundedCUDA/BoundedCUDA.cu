@@ -1,6 +1,5 @@
 ﻿
 #include "Loss.h"
-#include <iostream>
 
 int main()
 {
@@ -10,12 +9,14 @@ int main()
     cuda::std::complex<double> root[arraySize] = { 0 };
 
     Loss g; // initialize GPU and CUDA methods
+    g.deviceQuery(); // print out basic GPU facts
 
     // To do:
-    //  1) Implement mathematical functions
-    //  2) Implement parallelized matrix/vector initializations
+    //  1) Implement mathematical functions -- last did Pi0Qn() and Pi0Qnp()
+    //  2) Update error-checking - implement function or use try/catch
+    //  3) Implement parallelized matrix/vector initializations
     //      i.e., implement in a way that allows for direct cuBLAS calls after
-    //  3) Implement cuBLAS methods for subsequent linear algebra
+    //  4) Implement cuBLAS methods for subsequent linear algebra
 
     // current test -- posRoot on complex values, done on device
     cudaError_t cudaStatus = g.posRootWithCuda(arg, root, arraySize);
@@ -35,7 +36,7 @@ int main()
     {
         std::cout << "(" << root[i].real() << "," << root[i].imag() << "), ";
     }
-    std::cout << "})";
+    std::cout << "})" << std::endl;
 
     // cudaDeviceReset must be called before exiting in order for profiling and
     // tracing tools such as Nsight and Visual Profiler to show complete traces.

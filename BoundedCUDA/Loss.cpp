@@ -14,8 +14,35 @@ void Loss::initializeDevice()
     }
 }
 
+// load and print basic GPU information
+void Loss::deviceQuery()
+{
+    int deviceCount;
+    cudaGetDeviceCount(&deviceCount);
+    int device;
+    for (device = 0; device < deviceCount; ++device) {
+        cudaDeviceProp deviceProp;
+        cudaGetDeviceProperties(&deviceProp, device);
+        std::cout << "Device " << device << " is an " << deviceProp.name
+            << " and has compute capability " << deviceProp.major
+            << "." << deviceProp.minor << "." << std::endl;
+        std::cout << "Multiprocessor count: " << deviceProp.multiProcessorCount
+            << "." << std::endl;
+        std::cout << "Max threads per multiprocessor: " << deviceProp.maxThreadsPerMultiProcessor
+            << "." << std::endl;
+        std::cout << "Max blocks per multiprocessor: " << deviceProp.maxBlocksPerMultiProcessor
+            << "." << std::endl;
+        std::cout << "Max threads per block: " << deviceProp.maxThreadsPerBlock
+            << "." << std::endl;
+        std::cout << "'1' if concurrent kernels: " << deviceProp.concurrentKernels
+            << "." << std::endl;
+        std::cout << ">0 if async host-device memory transfer + kernel execution: "
+            << deviceProp.asyncEngineCount << "." << std::endl;
+    }
+}
 
-// TEST CODE BELOW 
+
+// TEST CODE BELOW -- mostly following CUDA template
 
 // basic vector addition
 cudaError_t Loss::addWithCuda(int* c, const int* a, const int* b, unsigned int size)

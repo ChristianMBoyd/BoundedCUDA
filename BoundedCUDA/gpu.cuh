@@ -7,9 +7,16 @@
 #include <cuda/std/cmath>
 #include <cuda/std/complex>
 
-// function declarations
+// device constants
+__constant__ cuda::std::complex<double> cuda_i(0, 1);
+__constant__ double pi = 3.141592653589793238463;
 
-// test functions
+// device function declarations
+__device__ cuda::std::complex<double> posRoot(cuda::std::complex<double> arg);
+__device__ cuda::std::complex<double> Pi0Qn(double q, double w, double delta, double Qn, double Qnp);
+__device__ cuda::std::complex<double> Pi0Qnp(double q, double w, double delta, double Qn, double Qnp);
+
+// kernel function and call declarations
 void addKernel_call(int* c, const int* a, const int* b, unsigned int size); // external call to initiate kernel with size threads
 __global__ void addKernel(int* c, const int* a, const int* b);
 void sqrtKernel_call(const double* arg, double* root, unsigned int size);

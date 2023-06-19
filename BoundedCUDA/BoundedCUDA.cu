@@ -20,11 +20,13 @@ int main()
 
     // current test -- posRoot on complex values, done on device
     cudaError_t cudaStatus = g.posRootWithCuda(arg, root, arraySize);
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "sqrtWithCuda failed!");
-        return 1;
+    bool working = g.check(cudaStatus,"posRootWithCuda() failed to complete!");
+    if (!working)
+    {
+        return 1; // main() error
     }
 
+    // printout results
     std::cout << "The result of sqrt({";
     for (int i = 0; i < arraySize; i++)
     {
@@ -41,9 +43,10 @@ int main()
     // cudaDeviceReset must be called before exiting in order for profiling and
     // tracing tools such as Nsight and Visual Profiler to show complete traces.
     cudaStatus = cudaDeviceReset();
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaDeviceReset failed!");
-        return 1;
+    working = g.check(cudaStatus, "cudaDeviceReset failed!");
+    if (!working)
+    {
+        return 1; // main() error
     }
 
     // closing preamble to have window hang after printing results

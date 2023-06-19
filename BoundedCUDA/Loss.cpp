@@ -2,43 +2,85 @@
 
 Loss::Loss()
 {
-    initializeDevice();
+    cudaError_t cudaStatus = initializeDevice();
+    check(cudaStatus, "initializeDevice failed!");
 }
 
-void Loss::initializeDevice()
+// assumes single GPU at device "0," extracts useful info into deviceProp and sets device for subsequent use
+cudaError_t Loss::initializeDevice()
 {
-    // set device for CUDA use
-    cudaError_t status = cudaSetDevice(0);
-    if (status != cudaSuccess) {
-        fprintf(stderr, "cudaSetDevice failed!  Check GPU configuration.");
+    // error checking
+    cudaError_t cudaStatus;
+    bool working;
+
+    // extract basic information from device
+    cudaStatus = cudaGetDeviceProperties(&deviceProp, 0);
+    working = check(cudaStatus,"cudaGetDeviceProperties failed! Check GPU configuration.");
+    
+    if (working)
+    {
+        // set device for CUDA use
+        cudaStatus = cudaSetDevice(0);
     }
+
+    return cudaStatus;
 }
 
-// load and print basic GPU information
+// print basic GPU information
 void Loss::deviceQuery()
 {
-    int deviceCount;
-    cudaGetDeviceCount(&deviceCount);
-    int device;
-    for (device = 0; device < deviceCount; ++device) {
-        cudaDeviceProp deviceProp;
-        cudaGetDeviceProperties(&deviceProp, device);
-        std::cout << "Device " << device << " is an " << deviceProp.name
-            << " and has compute capability " << deviceProp.major
-            << "." << deviceProp.minor << "." << std::endl;
-        std::cout << "Multiprocessor count: " << deviceProp.multiProcessorCount
-            << "." << std::endl;
-        std::cout << "Max threads per multiprocessor: " << deviceProp.maxThreadsPerMultiProcessor
-            << "." << std::endl;
-        std::cout << "Max blocks per multiprocessor: " << deviceProp.maxBlocksPerMultiProcessor
-            << "." << std::endl;
-        std::cout << "Max threads per block: " << deviceProp.maxThreadsPerBlock
-            << "." << std::endl;
-        std::cout << "'1' if concurrent kernels: " << deviceProp.concurrentKernels
-            << "." << std::endl;
-        std::cout << ">0 if async host-device memory transfer + kernel execution: "
-            << deviceProp.asyncEngineCount << "." << std::endl;
+    // assuming a single CUDA-enabled device and deviceProp initialized in initializeDevice()
+    std::cout << "Using an " << deviceProp.name
+        << " with compute capability " << deviceProp.major
+        << "." << deviceProp.minor << "." << std::endl;
+    std::cout << "Multiprocessor count: " << deviceProp.multiProcessorCount
+        << "." << std::endl;
+    std::cout << "Max threads per multiprocessor: " << deviceProp.maxThreadsPerMultiProcessor
+        << "." << std::endl;
+    std::cout << "Max blocks per multiprocessor: " << deviceProp.maxBlocksPerMultiProcessor
+        << "." << std::endl;
+    std::cout << "Max threads per block: " << deviceProp.maxThreadsPerBlock
+        << "." << std::endl;
+    std::cout << "'1' if concurrent kernels: " << deviceProp.concurrentKernels
+        << "." << std::endl;
+    std::cout << ">0 if async host-device memory transfer + kernel execution: "
+        << deviceProp.asyncEngineCount << "." << std::endl;
+}
+
+// basic error-checking, prints "errorReport" if status failed
+bool Loss::check(cudaError_t status, const char* errorReport)
+{
+    if (status != cudaSuccess)
+    {
+        fprintf(stderr, errorReport);
+        return false;
     }
+
+    return true;
+}
+
+// overload to support cudaGetErrorString functionality -- presumes %s call in errorReport
+bool Loss::check(cudaError_t status, const char* errorReport, const char* cudaErrorString)
+{
+    if (status != cudaSuccess)
+    {
+        fprintf(stderr, errorReport, cudaErrorString);
+        return false;
+    }
+
+    return true;
+}
+
+// overload to support error-code call in errorReport -- presumes %d call in errorReport
+bool Loss::check(cudaError_t status, const char* errorReport, cudaError_t errorCode)
+{
+    if (status != cudaSuccess)
+    {
+        fprintf(stderr, errorReport, errorCode);
+        return false;
+    }
+
+    return true;
 }
 
 
@@ -186,54 +228,54 @@ cudaError_t Loss::posRootWithCuda(const cuda::std::complex<double>* arg, cuda::s
     cuda::std::complex<double>* dev_arg = 0; // is it always efficient to zero out values first?
     cuda::std::complex<double>* dev_root = 0;
     cudaError_t cudaStatus;
+    bool working;
 
     // Allocate GPU buffers for two vector (one input, one output)
     cudaStatus = cudaMalloc((void**)&dev_arg, size * sizeof(cuda::std::complex<double>));
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc failed!");
-        goto Error; // trigger cleanup on failure
-    }
+    working = check(cudaStatus, "cudaMalloc dev_arg failed!"); // first cuda-check sets working
 
+    // following cuda-checks only continue if previous ones were successful
+    if (working)
+    {
     cudaStatus = cudaMalloc((void**)&dev_root, size * sizeof(cuda::std::complex<double>));
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMalloc failed!");
-        goto Error;
+    working = check(cudaStatus,"cudaMalloc dev_root failed!");
     }
 
 
     // Copy input vector from host to device memory: cudaMemcpyHostToDevice flag
+    if (working)
+    {
     cudaStatus = cudaMemcpy(dev_arg, arg, size * sizeof(cuda::std::complex<double>), cudaMemcpyHostToDevice);
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMemcpy failed!");
-        goto Error;
+    working = check(cudaStatus, "cudaMemcpy failed!");
     }
 
     // Launch a kernel on the GPU with one thread for each element.
-    posRootKernel_call(dev_arg, dev_root, size);
-
-    // Check for any errors launching the kernel
-    cudaStatus = cudaGetLastError();
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "posRootKernel launch failed: %s\n", cudaGetErrorString(cudaStatus));
-        goto Error;
+    if (working)
+    {
+        posRootKernel_call(dev_arg, dev_root, size);
+        cudaStatus = cudaGetLastError(); // check kernel launch
+        working = check(cudaStatus, "posRootKernel launch failed: %s\n",
+            cudaGetErrorString(cudaStatus)); // query additional kernel error info if failure
     }
 
     // cudaDeviceSynchronize waits for the kernel to finish, and returns
     // any errors encountered during the launch.
-    cudaStatus = cudaDeviceSynchronize();
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching posRootKernel!\n", cudaStatus);
-        goto Error;
+    if (working)
+    {
+        cudaStatus = cudaDeviceSynchronize();
+        working = check(cudaStatus,
+            "cudaDeviceSynchronize returned error code %d after launching posRootKernel!\n", cudaStatus);
     }
 
     // Copy output vector from GPU buffer to host memory - cudaMemcpyDeviceToHost flag
-    cudaStatus = cudaMemcpy(root, dev_root, size * sizeof(cuda::std::complex<double>), cudaMemcpyDeviceToHost);
-    if (cudaStatus != cudaSuccess) {
-        fprintf(stderr, "cudaMemcpy failed!");
-        goto Error;
+    if(working)
+    {
+        cudaStatus = cudaMemcpy(root, dev_root, size * sizeof(cuda::std::complex<double>),
+            cudaMemcpyDeviceToHost);
+        working = check(cudaStatus, "cudaMemcpy failed!");
     }
 
-Error: // failsafe: on error -> cleanup
+    // failsafe: on error or if all working -> cleanup
     cudaFree(dev_arg);
     cudaFree(dev_root);
 

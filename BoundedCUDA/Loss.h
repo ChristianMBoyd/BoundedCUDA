@@ -3,6 +3,7 @@
 #include <stdio.h> // CUDA-provided i/o
 #include <iostream> // preferred i/o
 #include <cmath> // standard CPU math
+#include <vector> // current buffer class
 // device code, kernel calls, and CUDA libraries
 #include "gpu.cuh"
 
@@ -12,8 +13,12 @@ public:
 	Loss();
 
 	// GPU management
-	void initializeDevice();
+	cudaDeviceProp deviceProp;
+	cudaError_t initializeDevice();
 	void deviceQuery();
+	bool check(cudaError_t status, const char* errorReport);
+	bool check(cudaError_t status, const char* errorReport, const char* cudaErrorString);
+	bool check(cudaError_t status, const char* errorReport, cudaError_t errorCode);
 
 	// purely test functions
 	cudaError_t addWithCuda(int* c, const int* a, const int* b, unsigned int size); // contains a lot of CUDA example usage

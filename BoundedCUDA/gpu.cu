@@ -2,7 +2,15 @@
 
 // Note: error-checking is kept in .cpp files, below are strictly device code and kernel calls
 
+
+
+
+
 // device functions below:
+
+
+
+
 
 // complex square root with positive imaginary part (branch cut along positive reals)
 __device__ cuda::std::complex<double> posRoot(cuda::std::complex<double> arg)
@@ -49,9 +57,7 @@ __device__ cuda::std::complex<double> Pi0Qnp(double q, double w, double delta, d
 
 
 
-
 // kernel function and call declarations below:
-
 
 
 

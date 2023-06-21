@@ -86,7 +86,7 @@ bool Loss::check(cudaError_t status, const char* errorReport, cudaError_t errorC
 
 // TEST CODE BELOW -- mostly following CUDA template
 
-// basic vector addition
+// basic vector addition - CUDA error checking
 cudaError_t Loss::addWithCuda(int* c, const int* a, const int* b, unsigned int size)
 {
     int* dev_a = 0;
@@ -160,7 +160,7 @@ Error: // failsafe: on error -> cleanup
     return cudaStatus;
 }
 
-// testing sqrt() functionality
+// testing sqrt() functionality - CUDA error checking
 cudaError_t Loss::sqrtWithCuda(const double* arg, double* root, unsigned int size)
 {
     // define CUDA pointers and error-checking
@@ -221,7 +221,7 @@ Error: // failsafe: on error -> cleanup
     return cudaStatus;
 }
 
-// testing posRoot functionality
+// testing posRoot functionality - first usage of check() error checking
 cudaError_t Loss::posRootWithCuda(const cuda::std::complex<double>* arg, cuda::std::complex<double>* root, unsigned int size)
 {
     // define CUDA pointers and error-checking
@@ -264,7 +264,8 @@ cudaError_t Loss::posRootWithCuda(const cuda::std::complex<double>* arg, cuda::s
     {
         cudaStatus = cudaDeviceSynchronize();
         working = check(cudaStatus,
-            "cudaDeviceSynchronize returned error code %d after launching posRootKernel!\n", cudaStatus);
+            "cudaDeviceSynchronize returned error code %d after launching posRootKernel!\n",
+            cudaStatus); // query additional kernel error info if failure
     }
 
     // Copy output vector from GPU buffer to host memory - cudaMemcpyDeviceToHost flag

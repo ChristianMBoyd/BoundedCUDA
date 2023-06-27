@@ -5,15 +5,9 @@ __constant__ cuda::std::complex<double> cuda_i(0, 1);
 __constant__ double pi = 3.141592653589793238463;
 
 
-
-
-
 // Note: error-checking is kept in .cpp files, below are strictly device code and kernel calls
 
 // device functions below:
-
-
-
 
 
 // complex square root with positive imaginary part (branch cut along positive reals)
@@ -57,50 +51,8 @@ __device__ cuda::std::complex<double> Pi0Qnp(double q, double w, double delta, d
 }
 
 
+// kernel definitions below:
 
-
-
-
-// kernel function and call declarations below:
-
-
-
-
-
-
-//// kernell call to nvidia test code
-//void addKernel_call(int* c, const int* a, const int* b,unsigned int size)
-//{
-//    addKernel << < 1, size >> > (c, a, b);// this arrangement works, previous versions of <<<#,#>>> flagged at compile time
-//}
-//
-//// nvidia test code
-//__global__ void addKernel(int* c, const int* a, const int* b)
-//{
-//    // thread enumeration
-//    int i = threadIdx.x;
-//    c[i] = a[i] + b[i];
-//}
-//
-//// kernel call to sqrt test
-//void sqrtKernel_call(const double* arg, double* root, unsigned int size)
-//{
-//    sqrtKernel << < 1, size >> > (arg, root);
-//}
-//
-//// sqrt test
-//__global__ void sqrtKernel(const double* arg, double* root)
-//{
-//    // thread enumeration
-//    int i = threadIdx.x;
-//    root[i] = cuda::std::sqrt(arg[i]);
-//}
-
-// kernel call to posRoot test
-void posRootKernel_call(const cuda::std::complex<double>* arg, cuda::std::complex<double>* root, unsigned int size)
-{
-    posRootKernel << < 1, size >> > (arg, root);
-}
 
 // posRoot test (complex math on GPU)
 __global__ void posRootKernel(const cuda::std::complex<double>* arg, cuda::std::complex<double>* root)

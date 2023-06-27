@@ -28,11 +28,7 @@ public:
 	bool check(cudaError_t status, const char* errorReport, const char* cudaErrorString);
 	bool check(cudaError_t status, const char* errorReport, cudaError_t errorCode);
 
-	//// purely test functions
-	//cudaError_t addWithCuda(int* c, const int* a, const int* b, unsigned int size); // contains a lot of CUDA example usage
-	//cudaError_t sqrtWithCuda(const double* arg, double* root, unsigned int size); // sqrt test
-
-	// posRoot test
+	// calculations and kernel calls
 	cudaError_t posRootWithCuda(const void* posRootKernel, const cuda::std::complex<double>* arg,
 		cuda::std::complex<double>* root, unsigned int size);
 };

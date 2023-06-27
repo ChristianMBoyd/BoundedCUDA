@@ -1,4 +1,4 @@
-﻿
+﻿#include "gpu.cuh"
 #include "Loss.h"
 
 int main()
@@ -19,7 +19,7 @@ int main()
     //  4) Implement cuSOLVER for the linear solve step
 
     // current test -- posRoot on complex values, done on device
-    cudaError_t cudaStatus = g.posRootWithCuda(arg, root, arraySize);
+    cudaError_t cudaStatus = g.posRootWithCuda(posRootKernel, arg, root, arraySize);
     bool working = g.check(cudaStatus,"posRootWithCuda() failed to complete!");
     if (!working)
     {

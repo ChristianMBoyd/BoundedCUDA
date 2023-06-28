@@ -1,16 +1,17 @@
 #include "gpu.cuh"
-
+// Note: error-checking is kept in .cpp files, below are strictly device code and kernel calls
+// 
 //device constants
 __constant__ cuda::std::complex<double> cuda_i(0, 1);
 __constant__ double pi = 3.141592653589793238463;
 
 
-// Note: error-checking is kept in .cpp files, below are strictly device code and kernel calls
 
 // device functions below:
 
 
-// complex square root with positive imaginary part (branch cut along positive reals)
+
+// complex square root with positive imaginary part (branch cut along positive real axis)
 __device__ cuda::std::complex<double> posRoot(cuda::std::complex<double> arg)
 {
     return cuda_i * cuda::std::sqrt(-arg);
@@ -51,7 +52,14 @@ __device__ cuda::std::complex<double> Pi0Qnp(double q, double w, double delta, d
 }
 
 
+
+
+
 // kernel definitions below:
+
+
+
+
 
 
 // posRoot test (complex math on GPU)

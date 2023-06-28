@@ -15,9 +15,12 @@
 namespace cg = cooperative_groups;
 
 // device function declarations
-__device__ cuda::std::complex<double> posRoot(cuda::std::complex<double> arg);
+__device__ cuda::std::complex<double> posRoot(cuda::std::complex<double> arg); // test code
 __device__ cuda::std::complex<double> Pi0Qn(double q, double w, double delta, double Qn, double Qnp);
 __device__ cuda::std::complex<double> Pi0Qnp(double q, double w, double delta, double Qn, double Qnp);
+// Next:
+//__device__ cuda::std::complex<double> sumPi0QnInterval(double q, double w, double delta, double Qn,
+//	double L, const int min, const int max);
 
 // kernel declarations
-__global__ void posRootKernel(const cuda::std::complex<double>* arg, cuda::std::complex<double>* root);
+__global__ void posRootKernel(const cuda::std::complex<double>* arg, cuda::std::complex<double>* root); // test kernel

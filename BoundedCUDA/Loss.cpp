@@ -44,7 +44,7 @@ void Loss::deviceQuery()
     std::cout << "Max threads per block: " << MAX_THREADS_PER_BLOCK << "." << std::endl;
     std::cout << "'1' if concurrent kernels: " << deviceProp.concurrentKernels
         << "." << std::endl;
-    std::cout << ">0 if async host-device memory transfer + kernel execution: "
+    std::cout << "[output]>0 if async host-device memory transfer + kernel execution: "
         << deviceProp.asyncEngineCount << "." << std::endl;
     std::cout << "'1' if cooperative launch support: " << deviceProp.cooperativeLaunch
         << "." << std::endl;
@@ -86,6 +86,36 @@ bool Loss::check(cudaError_t status, const char* errorReport, cudaError_t errorC
     return true;
 }
 
+// checks if an integer is even or odd
+bool Loss::evenQ(const int val)
+{
+    return (val % 2 == 0);
+}
+
+// enumerate maximum (absolute value) wavevector integral index
+int Loss::nMax(const double cutoff, const double L)
+{
+    return int(std::ceil(cutoff * L / pi));
+}
+
+// enumerate total number of non-negative wavevector entries
+int Loss::totNum(const int nMax, const bool evenPar)
+{
+    bool evenMax = evenQ(nMax);
+    return int(std::floor((nMax + 1) / 2)) + int(std::floor((evenMax + evenPar) / 2));
+}
+
+// fill in the non-negative entries of QList
+void Loss::initializeQList(double QList[], const double L, const int tot, const bool evenPar)
+{
+    const double dQ = pi / L;
+
+    for (int counter = 0; counter < tot; counter++)
+    {
+        QList[counter] = dQ * (1 - evenPar + 2 * counter);
+    }
+}
+
 // testing posRoot functionality - first usage of check() error checking
 cudaError_t Loss::posRootWithCuda(const void* posRootKernel,
     const cuda::std::complex<double>* arg, cuda::std::complex<double>* root, unsigned int size)
@@ -103,16 +133,16 @@ cudaError_t Loss::posRootWithCuda(const void* posRootKernel,
     // following cuda-checks only continue if previous ones were successful
     if (working)
     {
-    cudaStatus = cudaMalloc((void**)&dev_root, size * sizeof(cuda::std::complex<double>));
-    working = check(cudaStatus,"cudaMalloc dev_root failed!");
+        cudaStatus = cudaMalloc((void**)&dev_root, size * sizeof(cuda::std::complex<double>));
+        working = check(cudaStatus, "cudaMalloc dev_root failed!");
     }
 
 
     // Copy input vector from host to device memory: cudaMemcpyHostToDevice flag
     if (working)
     {
-    cudaStatus = cudaMemcpy(dev_arg, arg, size * sizeof(cuda::std::complex<double>), cudaMemcpyHostToDevice);
-    working = check(cudaStatus, "cudaMemcpy failed!");
+        cudaStatus = cudaMemcpy(dev_arg, arg, size * sizeof(cuda::std::complex<double>), cudaMemcpyHostToDevice);
+        working = check(cudaStatus, "cudaMemcpy failed!");
     }
 
     // Launch a kernel on the GPU with one thread for each element.
@@ -140,7 +170,7 @@ cudaError_t Loss::posRootWithCuda(const void* posRootKernel,
     }
 
     // Copy output vector from GPU buffer to host memory - cudaMemcpyDeviceToHost flag
-    if(working)
+    if (working)
     {
         cudaStatus = cudaMemcpy(root, dev_root, size * sizeof(cuda::std::complex<double>),
             cudaMemcpyDeviceToHost);

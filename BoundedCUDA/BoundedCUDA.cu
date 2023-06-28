@@ -49,7 +49,7 @@ int main()
         return 1; // main() error
     }
 
-    // closing preamble to have window hang after printing results
+    // closing input to have window hang after printing results
     char input;
     std::cout << "\nEnter any input to close.\n";
     std::cin >> input;

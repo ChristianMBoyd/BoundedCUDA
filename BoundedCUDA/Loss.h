@@ -28,7 +28,16 @@ public:
 	bool check(cudaError_t status, const char* errorReport, const char* cudaErrorString);
 	bool check(cudaError_t status, const char* errorReport, cudaError_t errorCode);
 
-	// calculations and kernel calls
+	// calculations
+	bool evenQ(const int val);
+	int nMax(const double cutoff, const double L);
+	int totNum(const int nMax, const bool evenPar);
+	void initializeQList(double Qlist[], const double L, const int tot, const bool evenPar);
+
+	// kernel calls
 	cudaError_t posRootWithCuda(const void* posRootKernel, const cuda::std::complex<double>* arg,
 		cuda::std::complex<double>* root, unsigned int size);
+
+	// constants
+	const double pi = 3.141592653589793238463;
 };

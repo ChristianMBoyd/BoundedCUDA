@@ -2,8 +2,7 @@
 
 Loss::Loss()
 {
-    cudaError_t cudaStatus = initializeDevice();
-    check(cudaStatus, "initializeDevice failed!");
+    cudaError_t cudaStatus = initializeDevice(); // already checked in initializeDevice(), may not need
 }
 
 // assumes single GPU at device "0," extracts useful info into deviceProp and sets device for subsequent use
@@ -11,7 +10,7 @@ cudaError_t Loss::initializeDevice()
 {
     // error checking
     cudaError_t cudaStatus;
-    bool working;
+    bool working = true;
 
     // extract basic information from device
     cudaStatus = cudaGetDeviceProperties(&deviceProp, 0);
@@ -19,13 +18,16 @@ cudaError_t Loss::initializeDevice()
     MAX_THREADS_PER_BLOCK = deviceProp.maxThreadsPerBlock;
     NUM_MP = deviceProp.multiProcessorCount;
     MAX_THREADS_PER_MP = deviceProp.maxThreadsPerMultiProcessor;
+    MAX_SMEM_PER_BLOCK = deviceProp.sharedMemPerBlock;
+    MAX_SMEM_PER_MP = deviceProp.sharedMemPerMultiprocessor;
 
-    working = check(cudaStatus,"cudaGetDeviceProperties failed! Check GPU configuration.");
+    check(working, cudaStatus, "cudaGetDeviceProperties failed! Check GPU configuration.");
     
     if (working)
     {
         // set device for CUDA use
         cudaStatus = cudaSetDevice(0);
+        check(working, cudaStatus, "cudaSetDevice() failed on device 0! Check GPU configuration.");
     }
 
     return cudaStatus;
@@ -41,49 +43,65 @@ void Loss::deviceQuery()
     std::cout << "Multiprocessor count: " << NUM_MP << "." << std::endl;
     std::cout << "Max threads per multiprocessor: " << MAX_THREADS_PER_MP << "." << std::endl;
     std::cout << "Max blocks per multiprocessor: " << MAX_BLOCKS_PER_MP << "." << std::endl;
+    std::cout << "Max shared memory per multiprocessor: " << MAX_SMEM_PER_MP <<
+        " bytes." << std::endl;
     std::cout << "Max threads per block: " << MAX_THREADS_PER_BLOCK << "." << std::endl;
+    std::cout << "Max shared memory per block: " << MAX_SMEM_PER_BLOCK <<
+        " bytes." << std::endl;
     std::cout << "'1' if concurrent kernels: " << deviceProp.concurrentKernels
         << "." << std::endl;
     std::cout << "[output]>0 if async host-device memory transfer + kernel execution: "
         << deviceProp.asyncEngineCount << "." << std::endl;
     std::cout << "'1' if cooperative launch support: " << deviceProp.cooperativeLaunch
         << "." << std::endl;
+    std::cout << " " << std::endl; // blank line before next output somewhere else
 }
 
-// basic error-checking, prints "errorReport" if status failed
-bool Loss::check(cudaError_t status, const char* errorReport)
+// basic error-checking: presumes "working" initialized to true and prints "errorReport" on cuda error
+void Loss::check(bool& working, cudaError_t status, const char* errorReport)
 {
     if (status != cudaSuccess)
     {
-        fprintf(stderr, errorReport);
-        return false;
+        const char* errorName = cudaGetErrorName(status);
+        const char* errorDesc = cudaGetErrorString(status);
+        fprintf(stderr, "%s\nError: %s\nDescription: %s\n", errorReport, errorName, errorDesc);
+        // signal to halt code progress
+        working = false;
     }
-
-    return true;
 }
 
-// overload to support cudaGetErrorString functionality -- presumes %s call in errorReport
-bool Loss::check(cudaError_t status, const char* errorReport, const char* cudaErrorString)
+// cuda calls for optimal occupany checked against device properties, smemSize is per-block shared memory requested
+// threadSmem is the per-thread shared memory requested, used to calculate smemSize
+cudaError_t Loss::optimizeLaunchParameters(int& threadsPerBlock, int& blocksPerGrid, int&smemSize,
+    const int threadSmem, const void* kernelFunc)
 {
-    if (status != cudaSuccess)
+    bool working = true;
+    cudaError_t cudaStatus = cudaOccupancyMaxPotentialBlockSize(&blocksPerGrid, &threadsPerBlock, kernelFunc);
+    check(working, cudaStatus, "cudaOccupancyMaxPotentialBlockSize failed! Check thread and block initialization.");
+
+    if (working)
     {
-        fprintf(stderr, errorReport, cudaErrorString);
-        return false;
+        // determine per-block shared memory based on per-thread memory requested
+        smemSize = threadsPerBlock * threadSmem;
+
+        // check results against device constraints (not currently checking smemSize)
+        threadsPerBlock = std::min(threadsPerBlock, MAX_THREADS_PER_BLOCK);
+        int maxBlocks = NUM_MP * MAX_THREADS_PER_MP / MAX_THREADS_PER_BLOCK;
+        blocksPerGrid = std::min(blocksPerGrid, maxBlocks);
+
+        int blocksPerMP = 0;
+        cudaStatus = cudaOccupancyMaxActiveBlocksPerMultiprocessor(&blocksPerMP, kernelFunc, threadsPerBlock, smemSize);
+        check(working, cudaStatus, "cudaOccupancyMaxActiveBlocksPerMultiprocessor failed! Check thread and block initialization.");
+        blocksPerGrid = NUM_MP * blocksPerMP;
     }
 
-    return true;
-}
-
-// overload to support error-code call in errorReport -- presumes %d call in errorReport
-bool Loss::check(cudaError_t status, const char* errorReport, cudaError_t errorCode)
-{
-    if (status != cudaSuccess)
+    if (working)
     {
-        fprintf(stderr, errorReport, errorCode);
-        return false;
+        // check against device parameters
+        blocksPerGrid = std::min(NUM_MP * MAX_BLOCKS_PER_MP, blocksPerGrid);
     }
 
-    return true;
+    return cudaStatus;
 }
 
 // checks if an integer is even or odd
@@ -116,25 +134,122 @@ void Loss::initializeQList(double QList[], const double L, const int tot, const 
     }
 }
 
+
+
+
+
+
+
+
+// kernel calls below
+
+
+
+
+
+
+
+
+// kernel to fill in the diagonal, symmetry-reduced entries in mChi0Diag
+cudaError_t Loss::mChi0DiagLaunch(const void* mChi0DiagKernel, const double QList[], cuda::std::complex<double> mChi0Diag[], int size,
+    double q, double w, double delta, double L, bool evenPar)
+{
+    // initialize device pointers 
+    double* dev_QList = 0;
+    cuda::std::complex<double>* dev_mChi0Diag = 0;
+    
+    // initialize error-checking
+    cudaError_t cudaStatus;
+    bool working = true;
+
+    // Allocate GPU buffers
+    cudaStatus = cudaMalloc((void**)&dev_QList, size * sizeof(double));
+    check(working, cudaStatus, "cudaMalloc dev_QList failed!");
+
+    if (working)
+    {
+        cudaStatus = cudaMalloc((void**)&dev_mChi0Diag, size * sizeof(cuda::std::complex<double>));
+        check(working, cudaStatus, "cudaMalloc dev_mChi0Diag failed!");
+    }
+
+    // copy QList into device memory: cudaMemcpyHostToDevice flag
+    if (working)
+    {
+        cudaStatus = cudaMemcpy(dev_QList, QList, size * sizeof(double), cudaMemcpyHostToDevice);
+        check(working, cudaStatus, "cudaMemcpy on QList failed!");
+    }
+
+    // determine optimal launch parameters (likely implement custom variant later on)
+    int threadsPerBlock = 0, blocksPerGrid = 0, smemSize = 0;
+    // threadSmem is the per-thread shared memory requested
+    // smemSize is the per-block shared memory, determined using theadSmem
+    int threadSmem = sizeof(cuda::std::complex<double>);
+    if (working)
+    {
+        cudaStatus = optimizeLaunchParameters(threadsPerBlock, blocksPerGrid, smemSize,
+            threadSmem, mChi0DiagKernel);
+        check(working, cudaStatus, "optimizeLaunchParameters for mChi0DiagKernel failed!");
+        // cuda thread and block parameters
+    }
+    dim3 blockDim(threadsPerBlock, 1, 1);
+    dim3 gridDim(blocksPerGrid, 1, 1);
+
+    // launch mChi0DiagKernel
+    if (working)
+    { 
+        std::cout << "Launching mChi0DiagKernel with " << blocksPerGrid << " blocks of "
+            << threadsPerBlock << " threads...";
+        void* kernelArgs[] = { (void*)&dev_QList, (void*)&dev_mChi0Diag, (void*)&size,
+            (void*)&q, (void*)&w, (void*)&delta, (void*)&L, (void*)&evenPar };
+        cudaLaunchCooperativeKernel(mChi0DiagKernel, gridDim, blockDim, kernelArgs, smemSize, NULL);
+        cudaStatus = cudaGetLastError(); // check kernel launch
+        check(working, cudaStatus, "cudaLaunchCooperativeKernel failed on mChi0DiagKernel!"); // query additional kernel error info
+    }
+
+    // wait for kernel to finish and collect errors afterward
+    if (working)
+    {
+        cudaStatus = cudaDeviceSynchronize();
+        std::cout << "Finished." << std::endl;
+        check(working, cudaStatus,
+            "cudaDeviceSynchronize failed after launching mChi0DiagKernel!"); // query additional kernel error info 
+    }
+
+    // copy result to host memory: cudamemcpyDeviceToHost flag
+    if (working)
+    {
+        cudaStatus = cudaMemcpy(mChi0Diag, dev_mChi0Diag, size * sizeof(cuda::std::complex<double>),
+                cudaMemcpyDeviceToHost);
+        check(working, cudaStatus, "cudaMemcpy failed to copy mChi0Diag to host!");
+    }
+
+    // failsafe clean-up: free device memory on failure or success
+    cudaFree(dev_QList);
+    cudaFree(dev_mChi0Diag);
+
+    return cudaStatus;
+}
+
 // testing posRoot functionality - first usage of check() error checking
+// CAUTION: likely out-dated/deprecated usage 
 cudaError_t Loss::posRootWithCuda(const void* posRootKernel,
     const cuda::std::complex<double>* arg, cuda::std::complex<double>* root, unsigned int size)
 {
     // define CUDA pointers and error-checking
-    cuda::std::complex<double>* dev_arg = 0; // is it always efficient to zero out values first?
+    cuda::std::complex<double>* dev_arg = 0;
     cuda::std::complex<double>* dev_root = 0;
     cudaError_t cudaStatus;
-    bool working;
+    bool working = true; // initialize
 
-    // Allocate GPU buffers for two vector (one input, one output)
+    // Allocate GPU buffers for two vectors (one input, one output)
     cudaStatus = cudaMalloc((void**)&dev_arg, size * sizeof(cuda::std::complex<double>));
-    working = check(cudaStatus, "cudaMalloc dev_arg failed!"); // first cuda-check sets working
+    check(working, cudaStatus, "cudaMalloc dev_arg failed!"); // error-checking cuda calls
 
     // following cuda-checks only continue if previous ones were successful
     if (working)
     {
         cudaStatus = cudaMalloc((void**)&dev_root, size * sizeof(cuda::std::complex<double>));
-        working = check(cudaStatus, "cudaMalloc dev_root failed!");
+        check(working, cudaStatus, "cudaMalloc dev_root failed!");
     }
 
 
@@ -142,31 +257,29 @@ cudaError_t Loss::posRootWithCuda(const void* posRootKernel,
     if (working)
     {
         cudaStatus = cudaMemcpy(dev_arg, arg, size * sizeof(cuda::std::complex<double>), cudaMemcpyHostToDevice);
-        working = check(cudaStatus, "cudaMemcpy failed!");
+        check(working, cudaStatus, "cudaMemcpy failed!");
     }
 
     // Launch a kernel on the GPU with one thread for each element.
     if (working)
     {
         // set up parameters for cudaLaunchKernel
-        dim3 gridDim(1, 1, 1);
-        dim3 blockDim(size, 1, 1);
+        dim3 blocksPerGrid(1, 1, 1);
+        dim3 threadsPerBlock(size, 1, 1);
         void* kernelArgs[] = { (void*)&dev_arg, (void*)&dev_root };
         int smemSize = 0;
-        cudaLaunchKernel(posRootKernel, gridDim, blockDim, kernelArgs, smemSize, NULL);
+        cudaLaunchKernel(posRootKernel, blocksPerGrid, threadsPerBlock, kernelArgs, smemSize, NULL);
         cudaStatus = cudaGetLastError(); // check kernel launch
-        working = check(cudaStatus, "posRootKernel launch failed: %s\n",
-            cudaGetErrorString(cudaStatus)); // query additional kernel error info if failure
+        check(working, cudaStatus, "posRootKernel launch failed!"); 
     }
 
     // cudaDeviceSynchronize waits for the kernel to finish, and returns
-    // any errors encountered during the launch.
+    // errors encountered during the launch.
     if (working)
     {
         cudaStatus = cudaDeviceSynchronize();
-        working = check(cudaStatus,
-            "cudaDeviceSynchronize returned error code %d after launching posRootKernel!\n",
-            cudaStatus); // query additional kernel error info if failure
+        check(working, cudaStatus,
+            "cudaDeviceSynchronize returned error code %d after launching posRootKernel!");
     }
 
     // Copy output vector from GPU buffer to host memory - cudaMemcpyDeviceToHost flag
@@ -174,7 +287,7 @@ cudaError_t Loss::posRootWithCuda(const void* posRootKernel,
     {
         cudaStatus = cudaMemcpy(root, dev_root, size * sizeof(cuda::std::complex<double>),
             cudaMemcpyDeviceToHost);
-        working = check(cudaStatus, "cudaMemcpy failed!");
+        check(working, cudaStatus, "cudaMemcpy failed!");
     }
 
     // failsafe: on error or if all working -> cleanup

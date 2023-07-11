@@ -16,28 +16,33 @@ class Loss
 public:
 	Loss();
 
-	// GPU management
+	//GPU management
+
 	cudaDeviceProp deviceProp;
-	int MAX_BLOCKS_PER_MP;
-	int MAX_THREADS_PER_MP;
-	int MAX_THREADS_PER_BLOCK;
-	int NUM_MP;
+	int MAX_BLOCKS_PER_MP, MAX_THREADS_PER_MP, MAX_THREADS_PER_BLOCK, NUM_MP,
+		MAX_SMEM_PER_BLOCK, MAX_SMEM_PER_MP;
 	cudaError_t initializeDevice();
 	void deviceQuery();
-	bool check(cudaError_t status, const char* errorReport);
-	bool check(cudaError_t status, const char* errorReport, const char* cudaErrorString);
-	bool check(cudaError_t status, const char* errorReport, cudaError_t errorCode);
-
+	void check(bool& working, cudaError_t status, const char* errorReport);
+	void check(bool& working, cudaError_t status, const char* errorReport, const char* cudaErrorString);
+	void check(bool& working, cudaError_t status, const char* errorReport, cudaError_t errorCode);
+	cudaError_t optimizeLaunchParameters(int& threadsPerBlock, int& blocksPerGrid, int& smemSize,
+		const int threadSmem, const void* kernelFunc);
 	// calculations
+
 	bool evenQ(const int val);
 	int nMax(const double cutoff, const double L);
 	int totNum(const int nMax, const bool evenPar);
 	void initializeQList(double Qlist[], const double L, const int tot, const bool evenPar);
 
 	// kernel calls
+
+	cudaError_t mChi0DiagLaunch(const void* mChi0DiagKernel, const double QList[], cuda::std::complex<double> mChi0Diag[],
+		int size, double q, double w, double delta, double L, bool evenPar);
 	cudaError_t posRootWithCuda(const void* posRootKernel, const cuda::std::complex<double>* arg,
 		cuda::std::complex<double>* root, unsigned int size);
 
 	// constants
+
 	const double pi = 3.141592653589793238463;
 };
